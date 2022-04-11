@@ -1,0 +1,143 @@
+第七章Linux服务器配置
+●一、MySql服务
+●rpm 安装软件和   yum安装软件
+●rpm
+●rpm命令对系统的包进行管理：安装，删除，查询，更新等操作
+●查询系统安装的所有包 rpm -qa
+●通过管道命令查看mysql 是否安装 rpm -qa|grep mysql  以及 rpm -qa|grep mariadb  或者   rpm -qa | grep -i mysql 不区分大小写
+●rpm  -ivh  软件包名，安装软件
+●rpm  -e  --nodpes   软件名，忽略依赖关系卸载软件
+●yum
+●yum–y install 软件名 ，安装软件
+●yum–y remove  软件名，卸载软件
+●安装mysql服务
+●1、卸载MySQL或mariadb 软件包
+● 查询是否存在 rpm -qa|grep mysql  以及 rpm -qa|grep mariadb
+●如果存在删除；rpm  -e      --nodeps       mysql-libs-xxx-xxx.x86_64
+●2、安装 MySQL服务端和客户端
+●rpm   -ivh   MySQL-server-5.6.51-1.el7.x86_64.rpm
+●rpm   -ivh   
+●安装完毕
+●查看是否在开机启动项   systemctl is-enabled  mysql   如果不在  添加开机启动项    systemctl   enable mysql
+●查看状态  systemctl status  mysql   如果关闭状态   开启mysql    systemctl start mysql 
+●进入mysql            mysql -u root -p      （第一次进入没有密码：直接回车）
+●设置密码
+●use mysql;
+●update user set password=PASSWORD('密码') where user='root';   修改密码
+●GRANT ALL PRIVILEGES ON . TO 'root'@'%' IDENTIFIED BY '密码' WITH GRANT OPTION;  设置允许远程登录
+
+●flush privileges;    刷新授权
+●quit; 退出mysql
+●3、远程登录
+●firewall-cmd          --zone=public      --query-port=3306/tcp  --permanent   查看3306端口状态
+●firewall-cmd         --zone=public       --add-port=3306/tcp  --permanent   添加端口信任
+●firewall-cmd         --reload     重载防火墙
+●使用navicat 进行链接，注意填入服务器IP地址
+●二、jdk安装以及tomcat安装
+●jdk安装
+●查看jdk自带版本   rpm -qa | grep jdk  ，卸载原版本    yum -y  remove  java-1.*
+●上传jdk1.8 进行解压  到  opt目录下       tar  -xzvf    jdk.xxxxxx    -C    /opt
+●重命名   mv   /opt/jdk.xxxxxx     /opt/jdk
+●配置环境变量
+●vim  /etc/profile.d/java.sh   或者在   vim   /etc/profile 系统环境变量下追加   （推荐使用方式一）
+
+●保存后，执行文件使配置项生效         source     /etc/profile.d/java.sh
+●java   -version   查看是否配置生效
+●tomcat 安装
+●解压tomcat      tar   -xzvf   apache-tomcat-8.5.35.tar.gz    -C    /opt/
+●改名    mv     /opt/apache-tomcat-8.5.35        /opt/tomcat
+●运行tomcat      /opt/tomcat/bin/startup.sh
+●因为tomcat默认端口号是8080   所以把8080端口加入到信任   firewall-cmd         --zone=public       --add-port=8080/tcp   --permanent
+●访问IP地址：8080查看是否能够访问tomcat
+●注：项目上线时会修改 tomcat的 server.xml配置项将  <Connector port="8080"  修改成  80端口，那么在访问网站时，就可以不用加版本号了
+●在tomcat首页点击Manager App   如果禁止访问 403。添加tomcat用户
+●如果需要远程访问，关闭远程访问IP限制  注释value节点
+●vim  /opt/tomcat/webapps/manager/META-INF/context.xml
+
+●找到 tomcat/conf/tomcat-users.xml
+●添加如下内容
+
+●重启tomcat
+●tomcat配置服务和自启动
+●1、在/etc/init.d 下创建文件   tomcat
+●在#!/bin/bash的情况下，虽然source不成功，但是还是运行了source后面的echo语句。sh则不会执行，sh可以认为是bash的标准模式
+
+●chkconfig : 2345  系统启动优先级   20系统启动优先级（优先级越低启动越早）   80系统关闭优先级    
+●0 系统停机模式，系统默认运行级别不能设置为0，否则不能正常启动，机器关的
+●1 单用户模式，root权限，用于系统维护，禁止远程登陆，就像Windows下的安全模式登录
+●2 多用户模式，没有NFS和网络支持
+●3 完整的多用户文本模式，有NFS和网络，登陆后进入控制台命令行模式
+●4 系统未使用，保留一般不用，在一些特殊情况下可以用它来做一些事情。例如在笔记本电脑的电池用尽时，可以切换到这个模式来做一些设置
+●5 图形化模式，登陆后进入图形GUI模式，X Window系统
+●6 重启模式，默认运行级别不能设为6，否则不能正常启动。运行init 6机器就会重启
+●使用  service tomcat restart
+●启动tomcat会调用tomcat安装文件中的startup.sh，而它调用了catalina.sh，catalina.sh则调用了setclasspath.sh。因此需要在setclasspath.sh的开头手动声明环境变量。
+●vim打开tomcat的bin目录下的setclasspath.sh，添加JAVA_HOME和JRE_HOME两个环境变量
+
+●2、将tomcat加入到开机启动项
+●systemctl enable  tomcat
+●3、部署web项目
+●cd   tomcat/webapps    创建test 目录    创建   html文件   访问测试
+●可以把打包成的war包放到目录下
+●修改tomcat/conf/server.xml
+
+●访问：192.168.130.100:8080/webtest/xxx
+●三、搭建ftp服务器
+●如果yum 安装出现问题   查看  /var/run/是否有yum.pid 文件，如果有的话，删除该文件，继续安装
+●1、安装和启动vsftpd
+●yum   install  vsftpd -y
+●安装完毕，启动ftp    systemctl   start   vsftpd
+●设置开机自启     systemctl   enable   vsftpd
+●2、开放防火墙21端口
+●firewall-cmd    --zone=public     --add-port=21/tcp     --permanent    开放21端口
+●firewall-cmd      --reload      重新加载防火墙配置
+●firewall-cmd     --zone=public     --list-ports        查看防火墙端口开放状况
+●3、用xftp客户端匿名链接测试。选择链接模式为主动
+
+
+
+●4、在系统里查看是否有pub这个文件夹存在。
+●ls    -lh      /var/ftp
+●5、修改selinux，默认情况下，CentOS 的FTP 是不允许实体账号登录取得用户主目录数据的，这是因为 SELinux 的问题。
+●getsebool -a | grep ftp                    查看有关selinux的策略
+●setsebool  -P  allow_ftpd_full_access   on   设置通过ftpd的请求
+●6、新建一个账户，不能登陆系统，只能登陆ftp
+●useradd   ftpuser     -s    /sbin/nologin      添加一个名为ftpuser的账户用于登陆ftp
+●passwd    ftpuser         添加账户密码
+●7、修改ftp配置文件
+●vim     /etc/vsftpd/vsftpd.conf   打开ftp核心配置文件
+●anonymous_enable=YES 改为NO           禁用匿名登陆
+●8、修改完配置文件重启ftp服务
+●systemctl   restart    vsftpd 重启服务
+●9、验证匿名登陆状况，查看是否能够连接
+
+●10、添加上传与下载的随机访问端口（能连接上就不需要设置）
+
+●11、防火墙开放端口（能链接上就不需要设置）
+●firewall-cmd --zone=public --add-port=5555-6666/tcp
+●12、vim  /etc/pam.d/vsftpd
+
+●11、设置只能访问自己的目录（chroot_list里面的是白名单，写在里面的用户名允许访问上级目录）
+
+●四、搭建DHCP服务器
+●DHCP 服务器指的是由服务器控制一段 IP 地址范围，客户端登录服务器时就可以自动获得服务器分配的 IP 地址和子网掩码
+●1、安装dhcp服务
+●yum    install    dhcp
+●2、为服务配置IP地址。
+●编辑/etc/sysconfig/network-scripts/ifcfg-ens33文件内容
+●假设为网卡配置IP 地址为 192.168.130.100
+●3、编辑DHCP 服务的配置文件
+●编辑  /etc/dhcp/dhcpd.conf
+
+●4、将服务器绑定到网卡
+●修改 vim /etc/sysconfig/dhcpd
+
+●5、启动DHCP
+●systemctl    start   dhcpd.service
+●systemctl    status   dhcpd.service
+●6、添加一台虚拟机，设置网卡为和DHCP服务器为同一个网卡
+
+●编辑网路配置项，做如下配置
+
+
+●重启  systemctl    restart   network       查看IP    ip   addr
